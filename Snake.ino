@@ -32,7 +32,7 @@ boolean pressed [6] = {false, false, false, false , false, false}; // Check if b
 int delayTime = 300;                                               // The delay the game will use to control movement
 unsigned long previousTime;                                        // Used with the control of the deplay
 int timeDecay = 50;                                                // Use will use an exponential decay to control play speed. Speed up the game over time.
-byte score = 0;                                                    // Keep track of the player score, this is saved into EEPROM when gameover.
+byte scoreHuman = 0;                                                    // Keep track of the player score, this is saved into EEPROM when gameover.
 int snakeHumanDirection = 3;                                       // The direction of the snake. 0 top, 1 left, 2 down, 3 right
 byte snakeHuman[WORLD_WIDTH*WORLD_HEIGHT][2] = {0};                // The snake body is a 2d array, rows consisting of the body parts and col the x & y cords [The long body][y & x]
 
@@ -51,7 +51,7 @@ void clear_array(byte [WORLD_WIDTH*WORLD_HEIGHT][2]);
 void timeCritial(){
     // Delay the system so we create the stepping effect while still listeniig to controls
     previousTime = millis();
-    while((millis() - previousTime) < exp(-score/timeDecay)*delayTime){
+    while((millis() - previousTime) < exp(-scoreHuman/timeDecay)*delayTime){
         // Player control D Pad
         if(arduboy.pressed(RIGHT_BUTTON) and !pressed[RIGHT]){
             snakeHumanDirection++;
@@ -72,6 +72,22 @@ void timeCritial(){
     }    
 }
 
+void placeFood(){
+    // Set the Food to a random spot on the map
+    foodPos[X] = 0;
+    foodPos[Y] = 0;
+    while(foodPos[X] == 0 and foodPos[Y] == 0 ){
+        foodPos[X] = random(1,WORLD_WIDTH-1);
+        foodPos[Y] = random(1,WORLD_HEIGHT-1);
+        for(int i = 0; i < WORLD_HEIGHT*WORLD_HEIGHT; i++){
+            if(foodPos[X] == snakeHuman[i][X] && foodPos[Y] == snakeHuman[i][Y]){
+                foodPos[X] = 0;
+                foodPos[Y] = 0;
+            }
+        }
+    }
+}
+
 // This function runs once in your game.
 // use it for anything that needs to be set only once in your game.
 void setup() {
@@ -79,7 +95,7 @@ void setup() {
     arduboy.begin();
 
     //Seed the random number generator
-	  arduboy.initRandomSeed();
+	arduboy.initRandomSeed();
 
     // here we set the framerate to 15, we do not need to run at
     // default 60 and it saves us battery life
@@ -112,11 +128,10 @@ void loop() {
             snakeHuman[0][Y] = random(1,WORLD_HEIGHT-1); 
 
             // Set the Food to a random spot on the map
-            foodPos[X] = random(1,WORLD_WIDTH-1);
-            foodPos[Y] = random(1,WORLD_HEIGHT-1);
+            placeFood();
 
             // Reset score
-            score = 0;
+            scoreHuman = 0;
 
             // Proced to the title screen.
             GAMESTATE = TITLE;
@@ -149,22 +164,22 @@ void loop() {
 
             // Body movement logic
             switch (snakeHumanDirection){
-        			case 0: // UP
-                if(snakeHuman[0][Y] - 1 < 0) snakeHuman[0][Y] = 8; 
-                push_front_array(snakeHuman[0][X], snakeHuman[0][Y] - 1, snakeHuman );
-        				break;
-        			case 1: // RIGHT
-                if(snakeHuman[0][X] + 1 > 15) snakeHuman[0][X] = -1; 
-        				push_front_array(snakeHuman[0][X] + 1, snakeHuman[0][Y], snakeHuman );
-        				break;
-        			case 2: // DOWN
-                if(snakeHuman[0][Y] + 1 > 7) snakeHuman[0][Y] = -1; 
-        				push_front_array(snakeHuman[0][X], snakeHuman[0][Y] + 1, snakeHuman );
-        				break;
-        			case 3: // LEFT
-                if(snakeHuman[0][X] - 1 < 0) snakeHuman[0][X] = 16;
-        				push_front_array(snakeHuman[0][X] - 1, snakeHuman[0][Y], snakeHuman );
-        				break;
+                case 0: // UP
+                    if(snakeHuman[0][Y] - 1 < 0) snakeHuman[0][Y] = 8; 
+                    push_front_array(snakeHuman[0][X], snakeHuman[0][Y] - 1, snakeHuman );
+                    break;
+                case 1: // RIGHT
+                    if(snakeHuman[0][X] + 1 > 15) snakeHuman[0][X] = -1; 
+                    push_front_array(snakeHuman[0][X] + 1, snakeHuman[0][Y], snakeHuman );
+                    break;
+                case 2: // DOWN
+                    if(snakeHuman[0][Y] + 1 > 7) snakeHuman[0][Y] = -1; 
+                    push_front_array(snakeHuman[0][X], snakeHuman[0][Y] + 1, snakeHuman );
+                    break;
+                case 3: // LEFT
+                    if(snakeHuman[0][X] - 1 < 0) snakeHuman[0][X] = 16;
+                    push_front_array(snakeHuman[0][X] - 1, snakeHuman[0][Y], snakeHuman );
+                    break;
             }
 
             // Chop off tail
@@ -178,9 +193,8 @@ void loop() {
 
             // Collision detection snakeHuman v Food
             if(snakeHuman[0][X] == foodPos[X] && snakeHuman[0][Y] == foodPos[Y]) {
-                foodPos[X] = random(1,WORLD_WIDTH-1);
-                foodPos[Y] = random(1,WORLD_HEIGHT-1);
-                score++;
+                placeFood();
+                scoreHuman++;
                 push_back_array(snakeHuman);
             }
 
@@ -203,22 +217,22 @@ void loop() {
             if ( savedScore == 255) savedScore = 0;
 
             arduboy.setCursor(0, 0);
-			      arduboy.print("GAME OVER!");
+            arduboy.print("GAME OVER!");
             arduboy.print("\n\n");
             arduboy.print("Score: ");
-            arduboy.print(score);
+            arduboy.print(scoreHuman);
             arduboy.print("\nHigh Score: ");
             arduboy.print(savedScore);
             arduboy.print("\n\n");
             arduboy.print("Press A to Play Again");
             
             // Save to EEPROM if new high score.
-            if (score > savedScore) EEPROM.update(0, score);
+            if (scoreHuman > savedScore) EEPROM.update(0, scoreHuman);
             
             if(arduboy.pressed(A_BUTTON) and !pressed[A]) {
-      				pressed[A] = true;
-      				GAMESTATE = RESET;
-      			}
+                pressed[A] = true;
+                GAMESTATE = RESET;
+            }
             break;    
     }
 
@@ -284,4 +298,3 @@ void clear_array(byte tailStack[WORLD_WIDTH*WORLD_HEIGHT][2]){
         tailStack[i][Y] = 255;
     }
 }
-
